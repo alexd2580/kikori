@@ -50,7 +50,7 @@ class App:
             )
 
             renderer = sdl2.SDL_CreateRenderer(window, -1, 0)
-            sdl2.SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+            sdl2.SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255)
 
             sdl2.SDL_ShowWindow(window)
             sdl2.SDL_SetWindowPosition(

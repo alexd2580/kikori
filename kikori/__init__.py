@@ -2,6 +2,7 @@
 __version__ = "0.1.0"
 
 import logging
+import ctypes
 
 import sdl2
 import sdl2.ext
@@ -17,6 +18,9 @@ class Box:
 
     def render(self, graphics):
         graphics.rect(self.rect, 100, 100, 100, 255)
+
+    def update(self, graphics):
+        self.rect.x = (self.rect.x + 10) % 4000
 
 
 class Graphics:
@@ -36,6 +40,46 @@ class Graphics:
                 if event.window.event == sdl2.SDL_WINDOWEVENT_CLOSE:
                     self.running = False
                     break
+                if event.window.event == sdl2.SDL_WINDOWEVENT_LEAVE:
+                    window_id = event.window.windowID
+                    [window_rect] = [
+                        window['internal_rect'] for window in self.windows
+                        if window['window_id'] == window_id
+                    ]
+
+                    x = ctypes.c_int()
+                    y = ctypes.c_int()
+                    sdl2.SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
+
+                    abs_x = window_rect.x + x.value
+                    x_left = abs_x < window_rect.x + window_rect.w / 2
+                    offset_x = -3 if x_left else 3
+                    abs_x = abs_x + offset_x
+
+                    abs_y = window_rect.y + y.value
+                    y_up = abs_y < window_rect.y + window_rect.h / 2
+                    offset_y = -3 if y_up else 3
+                    abs_y = abs_y + offset_y
+
+                    matching = [
+                        window for window in self.windows
+                        if self.point_in_rect(
+                            (abs_x, abs_y), window['internal_rect']
+                        )
+                    ]
+                    if matching:
+                        window = matching[0]
+                        rect = window['internal_rect']
+                        sdl2.SDL_WarpMouseInWindow(
+                            window['window'], abs_x - rect.x, abs_y - rect.y
+                        )
+
+            # if event.type == sdl2.SDL_MOUSEBUTTONDOWN:
+            #     print("DOWN  ", event.button.windowID, event.button.button, event.button.x, event.button.y)
+            # if event.type == sdl2.SDL_MOUSEMOTION:
+            #     print("MOTION", event.motion.windowID, event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel)
+            # if event.type == sdl2.SDL_MOUSEBUTTONUP:
+            #     print("UP    ", event.button.windowID, event.button.button, event.button.x, event.button.y)
 
     def prepare(self):
         self.num_displays = sdl2.SDL_GetNumVideoDisplays()
@@ -54,6 +98,7 @@ class Graphics:
                 int(rect.h - 2 * border_height),
                 int(sdl2.SDL_WINDOW_BORDERLESS)
             )
+            window_id = sdl2.SDL_GetWindowID(window)
 
             renderer = sdl2.SDL_CreateRenderer(window, -1, 0)
             sdl2.SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255)
@@ -72,7 +117,20 @@ class Graphics:
             )
             print(rect, internal_rect)
 
-            self.windows.append((rect, internal_rect, window, renderer))
+            self.windows.append({
+                'rect': rect,
+                'internal_rect': internal_rect,
+                'window_id': window_id,
+                'window': window,
+                'renderer': renderer,
+            })
+
+    @staticmethod
+    def point_in_rect(point, rect):
+        x, y = point
+        x_intersects = x >= rect.x and x <= rect.x + rect.w
+        y_intersects = y >= rect.y and y <= rect.y + rect.h
+        return x_intersects and y_intersects
 
     @staticmethod
     def rects_intersect(a, b):
@@ -81,12 +139,13 @@ class Graphics:
         return x_intersects and y_intersects
 
     def rect_on(self, display, rect, r, g, b, a):
-        _, _, _, renderer = self.windows[display]
+        renderer = self.windows[display]['renderer']
         sdl2.SDL_SetRenderDrawColor(renderer, r, g, b, a)
         sdl2.SDL_RenderFillRect(renderer, rect)
 
     def rect(self, rect, r, g, b, a):
-        for index, (_, display_rect, _, _) in enumerate(self.windows):
+        for index, window in enumerate(self.windows):
+            display_rect = window['internal_rect']
             if Graphics.rects_intersect(display_rect, rect):
                 local_rect = sdl2.SDL_Rect(
                     rect.x - display_rect.x, rect.y - display_rect.y,
@@ -95,30 +154,23 @@ class Graphics:
                 self.rect_on(index, local_rect, r, g, b, a)
 
     def run(self):
-        boxes = [Box(sdl2.SDL_Rect(0, 500, 100, 100))]
+        boxes = [Box(sdl2.SDL_Rect(0, int(1080 * 0.8 / 2) - 50, 100, 100))]
 
         last_tick = sdl2.SDL_GetTicks()
         while self.running:
             for box in boxes:
-                box.rect.x = (box.rect.x + 10) % 4000
-                print(box.rect.x)
-                # box.rect.y = box.rect.y + 10 % 1080
+                box.update(self)
 
-                # intersects = any([
-                #     Graphics.rects_intersect(box.rect, internal_rect)
-                #     for _, internal_rect, _, _ in self.windows
-                # ])
-                # if not intersects:
-                #     box.rect.y = 0
-
-            for _, _, _, renderer in self.windows:
+            for window in self.windows:
+                renderer = window['renderer']
                 sdl2.SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255)
                 sdl2.SDL_RenderClear(renderer)
 
             for box in boxes:
                 box.render(self)
 
-            for _, _, _, renderer in self.windows:
+            for window in self.windows:
+                renderer = window['renderer']
                 sdl2.SDL_RenderPresent(renderer)
 
             self.handle_events()

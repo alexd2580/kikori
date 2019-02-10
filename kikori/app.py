@@ -1,7 +1,9 @@
 import ctypes
 import logging
+from typing import List
 
 import sdl2
+from mypy_extensions import TypedDict
 
 from .event import Events, keyup_handler, windowevent_handler
 
@@ -27,7 +29,18 @@ class App:
     running = False
 
     num_displays = None
-    windows = []
+
+    Window = TypedDict(
+        "Window",
+        {
+            "rect": sdl2.SDL_Rect,
+            "internal_rect": sdl2.SDL_Rect,
+            "window_id": int,
+            "window": sdl2.SDL_Window,
+            "renderer": sdl2.SDL_Renderer,
+        },
+    )
+    windows: List[Window] = []
     events = Events()
 
     # if event.type == sdl2.SDL_MOUSEBUTTONDOWN:

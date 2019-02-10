@@ -33,7 +33,7 @@ def windowevent_handler(windowevent_type):
 class Events:
     # event_handlers :: Map EventId [Callable]
     event_handler_type = Callable[[sdl2.SDL_Event], None]
-    event_handlers: Dict[str, List[event_handler_type]] = {}
+    event_handlers: Dict[int, List[event_handler_type]] = {}
 
     @staticmethod
     def handle_events():
@@ -49,6 +49,7 @@ class Events:
 
         event_id = sdl2.__dict__.get(event_type)
         if type(event_id) is int:
+            assert isinstance(event_id, int)
             if event_id not in Events.event_handlers:
                 Events.event_handlers[event_id] = []
             Events.event_handlers[event_id].append(listener)

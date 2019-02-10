@@ -5,8 +5,7 @@ import logging
 
 import sdl2.ext
 
-from graphics import Graphics
-from event import Events
+from .app import App
 
 logging_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(format=logging_format, level=logging.INFO)
@@ -17,19 +16,8 @@ def main():
     logger.info("Initializing")
     sdl2.ext.init()
 
-    graphics = Graphics()
-    graphics.prepare()
-
-    Events.add_listener("SDL_KEYUP", stop)
-
-    graphics.run()
+    App.prepare()
+    App.run()
 
     sdl2.ext.quit()
     logger.info("Terminated")
-
-def stop(event):
-    if event.key.keysym.sym == sdl2.SDLK_q:
-        logger.info("Pressed q. Exiting now.")
-        Graphics.running = False
-
-main()

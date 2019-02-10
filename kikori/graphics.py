@@ -3,6 +3,8 @@ import ctypes
 
 import sdl2
 
+from event import Events
+
 logging_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 logging.basicConfig(format=logging_format, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,64 +26,67 @@ class Graphics:
     # 30 FPS.
     FRAME_DURATION = 1000 / 30
 
+    running = False
+
     def __init__(self):
-        self.running = True
         self.num_displays = None
         self.windows = []
+        self.events = Events()
 
-    def handle_events(self):
-        events = sdl2.ext.get_events()
-        for event in events:
-            if event.type == sdl2.SDL_WINDOWEVENT:
-                if event.window.event == sdl2.SDL_WINDOWEVENT_CLOSE:
-                    self.running = False
-                    break
-                if event.window.event == sdl2.SDL_WINDOWEVENT_LEAVE:
-                    window_id = event.window.windowID
-                    [window_rect] = [
-                        window['internal_rect'] for window in self.windows
-                        if window['window_id'] == window_id
-                    ]
+    # events = sdl2.ext.get_events()
+    # for event in events:
+    #     if event.type == sdl2.SDL_WINDOWEVENT:
+    #         if event.window.event == sdl2.SDL_WINDOWEVENT_CLOSE:
+    #             self.running = False
+    #             break
+    #         if event.window.event == sdl2.SDL_WINDOWEVENT_LEAVE:
+    #             window_id = event.window.windowID
+    #             [window_rect] = [
+    #                 window['internal_rect'] for window in self.windows
+    #                 if window['window_id'] == window_id
+    #             ]
 
-                    x = ctypes.c_int()
-                    y = ctypes.c_int()
-                    sdl2.SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
+    #             x = ctypes.c_int()
+    #             y = ctypes.c_int()
+    #             sdl2.SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
 
-                    abs_x = window_rect.x + x.value
-                    x_left = abs_x < window_rect.x + window_rect.w / 2
-                    offset_x = -3 if x_left else 3
-                    abs_x = abs_x + offset_x
+    #             abs_x = window_rect.x + x.value
+    #             x_left = abs_x < window_rect.x + window_rect.w / 2
+    #             offset_x = -3 if x_left else 3
+    #             abs_x = abs_x + offset_x
 
-                    abs_y = window_rect.y + y.value
-                    y_up = abs_y < window_rect.y + window_rect.h / 2
-                    offset_y = -3 if y_up else 3
-                    abs_y = abs_y + offset_y
+    #             abs_y = window_rect.y + y.value
+    #             y_up = abs_y < window_rect.y + window_rect.h / 2
+    #             offset_y = -3 if y_up else 3
+    #             abs_y = abs_y + offset_y
 
-                    matching = [
-                        window for window in self.windows
-                        if self.point_in_rect(
-                            (abs_x, abs_y), window['internal_rect']
-                        )
-                    ]
-                    if matching:
-                        window = matching[0]
-                        rect = window['internal_rect']
-                        sdl2.SDL_WarpMouseInWindow(
-                            window['window'], abs_x - rect.x, abs_y - rect.y
-                        )
-            if event.type == sdl2.SDL_KEYUP:
-                if event.key.keysym.sym == sdl2.SDLK_q:
-                    logger.info("Pressed q. Exiting now.")
-                    self.running = False
+    #             matching = [
+    #                 window for window in self.windows
+    #                 if self.point_in_rect(
+    #                     (abs_x, abs_y), window['internal_rect']
+    #                 )
+    #             ]
+    #             if matching:
+    #                 window = matching[0]
+    #                 rect = window['internal_rect']
+    #                 sdl2.SDL_WarpMouseInWindow(
+    #                     window['window'], abs_x - rect.x, abs_y - rect.y
+    #                 )
+    #     if event.type == sdl2.SDL_KEYUP:
+    #         if event.key.keysym.sym == sdl2.SDLK_q:
+    #             logger.info("Pressed q. Exiting now.")
+    #             self.running = False
 
-            # if event.type == sdl2.SDL_MOUSEBUTTONDOWN:
-            #     print("DOWN  ", event.button.windowID, event.button.button, event.button.x, event.button.y)
-            # if event.type == sdl2.SDL_MOUSEMOTION:
-            #     print("MOTION", event.motion.windowID, event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel)
-            # if event.type == sdl2.SDL_MOUSEBUTTONUP:
-            #     print("UP    ", event.button.windowID, event.button.button, event.button.x, event.button.y)
+    # if event.type == sdl2.SDL_MOUSEBUTTONDOWN:
+    #     print("DOWN  ", event.button.windowID, event.button.button, event.button.x, event.button.y)
+    # if event.type == sdl2.SDL_MOUSEMOTION:
+    #     print("MOTION", event.motion.windowID, event.motion.x, event.motion.y, event.motion.xrel, event.motion.yrel)
+    # if event.type == sdl2.SDL_MOUSEBUTTONUP:
+    #     print("UP    ", event.button.windowID, event.button.button, event.button.x, event.button.y)
 
     def prepare(self):
+        Graphics.running = True
+
         self.num_displays = sdl2.SDL_GetNumVideoDisplays()
         logger.info(f"Number of displays: {self.num_displays}")
 
@@ -154,10 +159,12 @@ class Graphics:
                 self.rect_on(index, local_rect, r, g, b, a)
 
     def run(self):
+        print(Graphics.running)
         boxes = [Box(sdl2.SDL_Rect(0, int(1080 * 0.8 / 2) - 50, 100, 100))]
 
         last_tick = sdl2.SDL_GetTicks()
-        while self.running:
+        while Graphics.running:
+            print(Graphics.running)
             for box in boxes:
                 box.update(self)
 
@@ -173,7 +180,7 @@ class Graphics:
                 renderer = window['renderer']
                 sdl2.SDL_RenderPresent(renderer)
 
-            self.handle_events()
+            Events.handle_events()
             current_tick = sdl2.SDL_GetTicks()
             last_tick = last_tick + self.FRAME_DURATION
             delay = last_tick - current_tick
